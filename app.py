@@ -33,10 +33,15 @@ def predict(ticker):
         return None, None
     latest = df.iloc[-1]
     score = 0
-    if latest["RSI"] < 50: score += 1
-    if latest["MACD"] > 0: score += 1
-    if latest["SMA20"] > latest["SMA50"]: score += 1
-    if latest["Change"] > 0: score += 1
+    rsi_val = float(latest["RSI"])
+    macd_val = float(latest["MACD"])
+    sma20_val = float(latest["SMA20"])
+    sma50_val = float(latest["SMA50"])
+    change_val = float(latest["Change"])
+    if rsi_val < 50: score += 1
+    if macd_val > 0: score += 1
+    if sma20_val > sma50_val: score += 1
+    if change_val > 0: score += 1
     confidence = int((score / 4) * 100)
     pred = "UP" if score >= 2 else "DOWN"
     return pred, confidence
@@ -66,26 +71,38 @@ if st.button("+ Add stock"):
     st.rerun()
 
 if st.button("Analyze my portfolio", type="primary", use_container_width=True):
-    total_invested, total_current = 0, 0
+    total_invested, total_current = 0.0, 0.0
     results = []
     for h in st.session_state.holdings:
         price = get_price(h["stock"])
-        if not price: continue
-        invested = h["buy_price"] * h["qty"]
-        current = price * h["qty"]
+        if not price:
+            continue
+        invested = float(h["buy_price"]) * float(h["qty"])
+        current = price * float(h["qty"])
         pnl = current - invested
         pnl_pct = (pnl / invested * 100) if invested > 0 else 0
         pred, conf = predict(h["stock"])
         total_invested += invested
         total_current += current
-        results.append({"ticker": h["stock"], "price": price, "invested": invested, "current": current, "pnl": pnl, "pnl_pct": pnl_pct, "pred": pred, "conf": conf})
+        results.append({
+            "ticker": h["stock"],
+            "price": price,
+            "invested": invested,
+            "current": current,
+            "pnl": pnl,
+            "pnl_pct": pnl_pct,
+            "pred": pred,
+            "conf": conf
+        })
 
     st.divider()
     st.subheader("Portfolio summary")
     c1, c2, c3 = st.columns(3)
     c1.metric("Total invested", f"₹{total_invested:,.0f}")
     c2.metric("Current value", f"₹{total_current:,.0f}")
-    c3.metric("Total P&L", f"₹{total_current - total_invested:,.0f}", delta=f"{((total_current-total_invested)/total_invested*100):.1f}%" if total_invested > 0 else "0%")
+    total_pnl = total_current - total_invested
+    total_pnl_pct = (total_pnl / total_invested * 100) if total_invested > 0 else 0
+    c3.metric("Total P&L", f"₹{total_pnl:,.0f}", delta=f"{total_pnl_pct:.1f}%")
 
     st.divider()
     st.subheader("Predictions")
@@ -93,7 +110,7 @@ if st.button("Analyze my portfolio", type="primary", use_container_width=True):
         with st.container(border=True):
             c1, c2, c3 = st.columns(3)
             c1.markdown(f"**{r['ticker']}**")
-            c1.write(f"₹{r['price']:,.2f}")
+            c1.write(f"Current price: ₹{r['price']:,.2f}")
             c2.metric("P&L", f"₹{r['pnl']:,.0f}", delta=f"{r['pnl_pct']:.1f}%")
             if r["pred"]:
                 c3.markdown("**Tomorrow's prediction**")
