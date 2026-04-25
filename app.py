@@ -33,7 +33,8 @@ def predict(ticker):
         return None, None
     latest = df.iloc[-1]
     score = 0
-    if latest["RSI"] < 50: score += 1
+    if float(latest["RSI"]) < 50:
+    score += 1: score += 1
     if latest["MACD"] > 0: score += 1
     if latest["SMA20"] > latest["SMA50"]: score += 1
     if latest["Change"] > 0: score += 1
